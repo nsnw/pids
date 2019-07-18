@@ -1,0 +1,82 @@
+#!/bin/bash
+
+# pids
+# (c) 2019 Andy Smith <andy@nsnw.ca>
+# This is licensed under the MIT License, a copy of which can
+# be found at https://opensource.org/licenses/MIT
+
+FIM="/usr/bin/fim"
+SHUTDOWN="/sbin/shutdown"
+
+# Default options
+INTERVAL=5
+RANDOM=1
+QUIET=1
+DISABLED=0
+
+# Ensure the local pi user has no password, to prevent SSH logins with a password
+/usr/bin/passwd -d pi
+
+# Check to make sure /dev/sda1 exists
+if [[ ! -b /dev/sda1 ]]; then
+  # Set a temporary password
+  echo -e "pids\npids" | passwd pi
+
+  # Disable pids
+  DISABLED=1
+
+  # Display the 'no USB device detected` splash screen, and reboot in 1 minute
+  ${FIM} -a -q /usr/local/share/pids/pids-nousb.png
+  ${SHUTDOWN} -r 1
+else
+  mount /dev/sda1 /mnt/usb
+fi
+
+# If a config file exists on the USB device, source it
+if [[ -f /mnt/usb/pids.conf ]]; then
+  echo "Found pids.conf"
+  source /mnt/usb/pids.conf
+fi
+
+# Check to see if we're supposed to be disabled
+if [[ ${DISABLED} -eq 1 ]]; then
+  echo "Disabling slideshow"
+  /bin/systemctl stop pids
+  exit
+fi
+
+# Check to see if we should be showing images in a random order (default: yes)
+if [[ ${RANDOM} -eq 1 ]]; then
+  echo "Enabling randomiser"
+  RANDOM_OPT="-u"
+else
+  RANDOM_OPT=""
+fi
+
+# Check to see if we should be in quiet mode (default: yes)
+if [[ ${QUIET} -eq 1 ]]; then
+  echo "Enabling quiet mode"
+  QUIET_OPT="-q"
+else
+  QUIET_OPT=""
+fi
+
+# Check to see if there's an SSH key configured
+if [[ ! -z ${SSH_KEY} ]]; then
+  echo "SSH key found"
+  mkdir -p /home/pi/.ssh
+  echo "${SSH_KEY}" >/home/pi/.ssh/authorized_keys
+  chown -R pi:pi /home/pi/.ssh
+  chmod 700 /home/pi/.ssh
+  chmod 644 /home/pi/.ssh/authorized_keys
+fi
+
+# Allow system to settle after boot
+sleep 10
+
+# Run fim with various options
+# -a = auto zoom
+# -u = randomise
+# -q = quiet
+# -R /mnt/usb = recursively load files from /mnt/usb
+/usr/bin/fim -a ${RANDOM_OPT} ${QUIET_OPT} -R /mnt/usb -c "while(1){display;sleep \"${INTERVAL}\";next;}"

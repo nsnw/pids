@@ -1,0 +1,10 @@
+[Unit]
+Description=pids - Pi Digital Signage
+
+[Service]
+Type=simple
+ExecStart=/bin/bash /usr/local/bin/pids
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
