@@ -14,6 +14,7 @@ MOUNT="/bin/mount"
 UMOUNT="/bin/umount"
 RSYNC="/usr/bin/rsync"
 DF="/bin/df"
+WGET="/usr/bin/wget"
 
 USB_DEV="/dev/sda1"
 USB_DIR="/mnt/usb"
@@ -92,6 +93,32 @@ mount_usb_storage() {
 unmount_usb_storage() {
   echo "Unmounting USB storage"
   ${UMOUNT} ${USB_DIR}
+}
+
+download_image_list() {
+  echo "Downloading image list"
+
+  if [[ -f ${PERSISTENT_DIR}/${CONFIG_FILE} ]]; then
+    mv ${PERSISTENT_DIR}/${CONFIG_FILE} /tmp
+    recreate_persistent_dir
+    mv /tmp/${CONFIG_FILE} ${PERSISTENT_DIR}/
+  else
+    cp ${USB_DIR}/${CONFIG_FILE} ${PERSISTENT_DIR}/
+    recreate_persistent_dir
+  fi
+
+  ${WGET} ${URL} -O ${PERSISTENT_DIR}/remote-images.txt
+
+  if [[ $? -ne 0 ]]; then
+    echo "Failed to download images - restarting"
+    ${SYSTEMCTL} restart pids
+  fi
+}
+
+download_remote_images() {
+  echo "Downloading images"
+  cd ${PERSISTENT_DIR}
+  ${WGET} -i ${PERSISTENT_DIR}/remote-images.txt
 }
 
 # Ensure the local pi user has no password, to prevent SSH logins with a password
@@ -175,9 +202,23 @@ fi
 # Allow system to settle after boot
 sleep 3
 
-# Run fim with various options
-# -a = auto zoom
-# -u = randomise
-# -q = quiet
-# -R /mnt/usb = recursively load files from /mnt/usb
-run_fim ${IMAGE_DIR}
+# If URL is specified, download the images
+if [[ ! -z ${URL} ]]; then
+  if [[ ! -z ${REFRESH} ]]; then
+    # Refresh
+    while true; do
+      download_image_list
+      download_remote_images
+      run_fim ${IMAGE_DIR} &
+      sleep ${REFRESH}
+      killall fim
+    done
+  else
+    # One shot
+    download_image_list
+    download_remote_images
+    run_fim ${IMAGE_DIR}
+  fi
+else
+  run_fim ${IMAGE_DIR}
+fi

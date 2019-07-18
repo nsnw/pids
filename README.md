@@ -53,6 +53,8 @@ This file can contain a few options:-
 * `DISABLED`, which tells `pids` to exit on boot and not run any further. The default is **0** (not disabled).
 * `SSH_KEY`, which if specified should be an SSH key in the same format as found in `~/.ssh/authorized_keys`. This will be placed into `/home/pi/.ssh/authorized_keys` on the Pi to allow login as the `pi` user.
 * `PERSISTENT`, which tells `pids` to copy all the data off the USB storage device to allow subsequent reboots to happen without the USB storage device. The default is **0** (don't persist).
+* `URL`, which if specified should be a URL pointing to a list of images for `pids` to download.
+* `REFRESH`, which will cause `pids` to redownload the images from `URL` after the given number of seconds. By default this is not set, which means it will not redownload images until the next reboot.
 
 By default, the `pi` user does not have a password set. This is to disable SSH login *unless* an SSH key is provided using the `SSH_KEY` option above. The only exception to this is if there's a problem on boot - for more information see the troubleshooting section below.
 
@@ -66,8 +68,6 @@ By default, the `pi` user does not have a password set. If one is set manually, 
 Right now, `pids` is hard-coded to look for `/dev/sda`. This means that if you have multiple USB storage devices connected, it will only use the first one.
 
 ## Bugs, limitations and development
-At the moment, `pids` will only load images from the attached USB storage device, and it's not particularly choosy - it will load everything is can find recursively. This is because this project came out of a need to display a slideshow for my wedding, so it does exactly what I needed it to. I plan to add the ability to load images remotely in future.
-
 If you have any ideas for features, feel free to open an issue on GitHub and I'll take a look.
 
 ## Copyright
