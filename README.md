@@ -18,7 +18,7 @@ A small script (**pids**) runs on boot which does the following:-
 
 * checks for the existence of device at `/dev/sda`, assuming it will be a USB storage device.
 * mounts `/dev/sda1` at `/mnt/usb`.
-* checks for the existence of a configuration file (`pids.conf`) on the USB storage device.
+* checks for the existence of a *optional* configuration file (`pids.conf`) on the USB storage device.
 * displays the images (using `fim`) on the USB storage device in a loop, and in a random order.
 
 Prebuilt images are available (see https://pids.nsnw.ca/), or you can use the files in this repo to integrate it into your own image. The files are:-
