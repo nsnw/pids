@@ -1,4 +1,4 @@
-# pids - Digital Signal for the Raspberry Pi
+# pids - Digital Signage for the Raspberry Pi
 
 ## What is this?
 **pids** is a simple way to use a [Raspberry Pi](https://www.raspberrypi.org/) to display a slideshow, with little to no configuration needed. It's built on top of [Raspbian](https://www.raspbian.org/) and uses [FIM](https://www.nongnu.org/fbi-improved/) to display images.
