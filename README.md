@@ -52,6 +52,7 @@ This file can contain a few options:-
 * `QUIET`, which tells `fim` whether to show details about each image. The default is **1** (enabling quiet mode).
 * `DISABLED`, which tells `pids` to exit on boot and not run any further. The default is **0** (not disabled).
 * `SSH_KEY`, which if specified should be an SSH key in the same format as found in `~/.ssh/authorized_keys`. This will be placed into `/home/pi/.ssh/authorized_keys` on the Pi to allow login as the `pi` user.
+* `PERSISTENT`, which tells `pids` to copy all the data off the USB storage device to allow subsequent reboots to happen without the USB storage device. The default is **0** (don't persist).
 
 By default, the `pi` user does not have a password set. This is to disable SSH login *unless* an SSH key is provided using the `SSH_KEY` option above. The only exception to this is if there's a problem on boot - for more information see the troubleshooting section below.
 

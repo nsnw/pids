@@ -5,43 +5,144 @@
 # This is licensed under the MIT License, a copy of which can
 # be found at https://opensource.org/licenses/MIT
 
+# Paths
 FIM="/usr/bin/fim"
 SHUTDOWN="/sbin/shutdown"
+SYSTEMCTL="/bin/systemctl"
+PASSWD="/usr/bin/passwd"
+MOUNT="/bin/mount"
+UMOUNT="/bin/umount"
+RSYNC="/usr/bin/rsync"
+DF="/bin/df"
+
+USB_DEV="/dev/sda1"
+USB_DIR="/mnt/usb"
+PERSISTENT_DIR="/opt/pids"
+PIDS_IMAGE_DIR="/usr/local/share/pids"
+CONFIG_FILE="pids.conf"
 
 # Default options
 INTERVAL=5
 RANDOM=1
 QUIET=1
 DISABLED=0
+PERSISTENT=0
+
+source_config() {
+  CONFIG_FILE="$1"
+  echo "Sourcing ${CONFIG_FILE}"
+  source ${CONFIG_FILE}
+}
+
+create_persistent_dir() {
+  echo "Creating persistent directory"
+  mkdir -p /opt/pids
+  chown pi:pi /opt/pids
+}
+
+delete_persistent_dir() {
+  echo "Deleting persistent directory"
+  rm -rf /opt/pids
+}
+
+recreate_persistent_dir() {
+  delete_persistent_dir
+  create_persistent_dir
+}
+
+copy_to_persistent_dir() {
+  echo "Copying data to persistent directory"
+  ${RSYNC} ${USB_DIR}/* ${PERSISTENT_DIR}
+}
+
+run_fim() {
+  IMAGE_PATH="$1"
+  echo "Running FIM in ${IMAGE_PATH}"
+  ${FIM} -a ${RANDOM_OPT} ${QUIET_OPT} -R ${IMAGE_PATH} -c "while(1){display;sleep \"${INTERVAL}\";next;}"
+}
+
+set_pi_passwd() {
+  echo "Setting password for pi user"
+  echo -e "pids\npids" | ${PASSWD} pi
+}
+
+delete_pi_passwd() {
+  echo "Deleting password for pi user"
+  ${PASSWD} -d pi
+}
+
+ensure_usb_dir() {
+  echo "Ensuring ${USB_DIR} exists"
+  if [[ ! -d ${USB_DIR} ]]; then
+    mkdir -p ${USB_DIR}
+    echo "Created ${USB_DIR}"
+  fi
+}
+
+is_usb_storage_mounted() {
+  ${DF} ${USB_DIR} >/dev/null 2>&1
+  return $?
+}
+
+mount_usb_storage() {
+  echo "Mounting USB storage"
+  ${MOUNT} ${USB_DEV} ${USB_DIR}
+}
+
+unmount_usb_storage() {
+  echo "Unmounting USB storage"
+  ${UMOUNT} ${USB_DIR}
+}
 
 # Ensure the local pi user has no password, to prevent SSH logins with a password
-/usr/bin/passwd -d pi
+delete_pi_passwd
 
-# Check to make sure /dev/sda1 exists
-if [[ ! -b /dev/sda1 ]]; then
+# Check to see if the USB storage device exists
+if [[ -b ${USB_DEV} ]]; then
+  ensure_usb_dir
+
+  if [[ is_usb_storage_mounted -eq 0 ]]; then
+    unmount_usb_storage
+  fi
+
+  mount_usb_storage
+
+  if [[ -f ${USB_DIR}/${CONFIG_FILE} ]]; then
+    echo "Sourcing ${USB_DIR}/${CONFIG_FILE}"
+    source ${USB_DIR}/${CONFIG_FILE}
+  fi
+
+  if [[ ${PERSISTENT} -eq 1 ]]; then
+    recreate_persistent_dir
+    copy_to_persistent_dir
+    IMAGE_DIR="${PERSISTENT_DIR}"
+  else
+    echo "Persistence is not enabled"
+    IMAGE_DIR="${USB_DIR}"
+  fi
+elif [[ -d ${PERSISTENT_DIR} ]]; then
+  if [[ -f ${PERSISTENT_DIR}/${CONFIG_FILE} ]]; then
+    echo "Sourcing ${PERSISTENT_DIR}/${CONFIG_FILE}"
+    source ${PERSISTENT_DIR}/${CONFIG_FILE}
+  fi
+
+  IMAGE_DIR="${PERSISTENT_DIR}"
+else
   # Set a temporary password
-  echo -e "pids\npids" | passwd pi
+  set_pi_passwd
 
   # Disable pids
   DISABLED=1
 
-  # Display the 'no USB device detected` splash screen, and reboot in 1 minute
-  ${FIM} -a -q /usr/local/share/pids/pids-nousb.png
-  ${SHUTDOWN} -r 1
-else
-  mount /dev/sda1 /mnt/usb
-fi
-
-# If a config file exists on the USB device, source it
-if [[ -f /mnt/usb/pids.conf ]]; then
-  echo "Found pids.conf"
-  source /mnt/usb/pids.conf
+  # Display the 'no USB device detected` splash screen, and reboot in 2 minutes
+  ${FIM} -a -q ${PIDS_IMAGE_DIR} pids-nousb.png -c 'quit'
+  ${SHUTDOWN} -r 2
 fi
 
 # Check to see if we're supposed to be disabled
 if [[ ${DISABLED} -eq 1 ]]; then
-  echo "Disabling slideshow"
-  /bin/systemctl stop pids
+  echo "Disabling pids"
+  ${SYSTEMCTL} stop pids
   exit
 fi
 
@@ -72,11 +173,11 @@ if [[ ! -z ${SSH_KEY} ]]; then
 fi
 
 # Allow system to settle after boot
-sleep 10
+sleep 3
 
 # Run fim with various options
 # -a = auto zoom
 # -u = randomise
 # -q = quiet
 # -R /mnt/usb = recursively load files from /mnt/usb
-/usr/bin/fim -a ${RANDOM_OPT} ${QUIET_OPT} -R /mnt/usb -c "while(1){display;sleep \"${INTERVAL}\";next;}"
+run_fim ${IMAGE_DIR}
